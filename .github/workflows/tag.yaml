@@ -1,0 +1,27 @@
+name: tag
+on:
+  push:
+    branches: [main]
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    container: golang:1.26
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: build
+        run: |
+          cd src/pluging-insert-checker
+          go build -buildvcs=false -o pluging-insert-checker
+
+      - name: tag
+        run: |
+          git config --global --add safe.directory /__w/sqlc/sqlc
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          git fetch --tags
+          ./tag.sh pluging-insert-checker
+          git push origin --tags

@@ -1,0 +1,28 @@
+name: release
+on:
+  push:
+    tags: ["*-v*"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: golang:1.26
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: build
+        run: |
+          cd src/pluging-insert-checker
+          GOOS=wasip1 GOARCH=wasm go build -buildvcs=false -o pluging-insert-checker.wasm
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "Release ${{ github.ref_name }}"
+          body: "Automated release for ${{ github.ref_name }}"
+          files: |
+            pluging-insert-checker.wasm
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
