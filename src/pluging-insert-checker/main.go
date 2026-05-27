@@ -10,8 +10,6 @@ import (
 	"github.com/sqlc-dev/plugin-sdk-go/plugin"
 )
 
-const debugMode = false
-
 func main() {
 	codegen.Run(generate)
 }
