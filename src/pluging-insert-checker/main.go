@@ -3,10 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/sqlc-dev/plugin-sdk-go/codegen"
 	"github.com/sqlc-dev/plugin-sdk-go/plugin"
 )
+
+const debugMode = false
 
 func main() {
 	codegen.Run(generate)
@@ -35,21 +39,23 @@ func generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 		}
 	}
 
-	for _, q := range req.Queries {
-		if q.InsertIntoTable == nil {
+	for _, query := range req.Queries {
+		if query.InsertIntoTable == nil {
+			continue
+		}
+		insertInfo, err := extractInsertParts(query.Text)
+		if err != nil {
 			continue
 		}
 
-		table := q.InsertIntoTable.Name
-		reqCols := required[table]
-
+		reqCols := required[insertInfo.Table]
 		if len(reqCols) == 0 {
 			continue
 		}
 
 		provided := map[string]bool{}
-		for _, c := range q.Params {
-			provided[c.Column.Name] = true
+		for _, c := range insertInfo.Columns {
+			provided[c] = true
 		}
 
 		var missing []string
@@ -61,19 +67,56 @@ func generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 
 		if len(missing) > 0 {
 			return nil, fmt.Errorf(
-				"❌ INSERT into %s missing NOT NULL columns: %v",
-				table,
+				"❌ File: %s INSERT into %s missing NOT NULL columns: %v",
+				query.Filename,
+				insertInfo.Table,
 				missing,
 			)
 		}
+
 	}
 
-	return &plugin.GenerateResponse{
-		Files: []*plugin.File{
-			{
-				Name:     "debug.txt",
-				Contents: []byte("Plugin validation passed"),
-			},
-		},
+	return &plugin.GenerateResponse{}, nil
+}
+
+type InsertInfo struct {
+	Table   string
+	Columns []string
+}
+
+// extractInsertParts parses the SQL string to find the table and columns of an INSERT statement
+func extractInsertParts(sqlQuery string) (*InsertInfo, error) {
+	// Clean up whitespaces and newlines to make matching easier
+	normalized := regexp.MustCompile(`\s+`).ReplaceAllString(sqlQuery, " ")
+
+	// Regex breakdown:
+	// (?i)                 : Case-insensitive match
+	// INSERT\s+INTO\s+     : Matches "INSERT INTO "
+	// ([a-zA-Z0-9_]+)      : Capture Group 1: The table name
+	// \s*\((.*?)\)         : Capture Group 2: Everything inside the columns parentheses (...)
+	// \s*(VALUES|SELECT)   : Matches up to VALUES or SELECT (stopping there)
+	re := regexp.MustCompile(`(?i)INSERT\s+INTO\s+([a-zA-Z0-9_]+)\s*\((.*?)\)\s*(VALUES|SELECT)`)
+
+	matches := re.FindStringSubmatch(normalized)
+	if len(matches) < 3 {
+		return nil, fmt.Errorf("could not parse a valid INSERT INTO statement with columns")
+	}
+
+	tableName := matches[1]
+	columnsRaw := matches[2]
+
+	// Split columns by comma and trim spaces
+	rawCols := strings.Split(columnsRaw, ",")
+	var columns []string
+	for _, col := range rawCols {
+		trimmed := strings.TrimSpace(col)
+		if trimmed != "" {
+			columns = append(columns, trimmed)
+		}
+	}
+
+	return &InsertInfo{
+		Table:   tableName,
+		Columns: columns,
 	}, nil
 }
