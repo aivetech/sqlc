@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/sqlc-dev/plugin-sdk-go/codegen"
@@ -14,8 +16,27 @@ func main() {
 	codegen.Run(generate)
 }
 
+type Options struct {
+	IgnoreColumns []string `json:"ignore_columns"`
+}
+
 func generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.GenerateResponse, error) {
 	required := map[string]map[string]bool{}
+
+	// f, err := os.OpenFile("./sqlc-plugin.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// defer f.Close()
+
+	var defaultCols = make(map[string][]string)
+	if len(req.PluginOptions) > 0 {
+		cols, err := parseOptions(req)
+		if err != nil {
+			return nil, err
+		}
+		defaultCols = cols
+	}
 
 	for _, schema := range req.Catalog.Schemas {
 		if schema.Name != "public" {
@@ -30,7 +51,7 @@ func generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 			}
 
 			for _, col := range table.Columns {
-				if col.NotNull {
+				if col.NotNull && (defaultCols[tableName] == nil || !slices.Contains(defaultCols[tableName], col.Name)) {
 					required[tableName][col.Name] = true
 				}
 			}
@@ -117,4 +138,24 @@ func extractInsertParts(sqlQuery string) (*InsertInfo, error) {
 		Table:   tableName,
 		Columns: columns,
 	}, nil
+}
+
+func parseOptions(req *plugin.GenerateRequest) (map[string][]string, error) {
+	var opts Options
+	if err := json.Unmarshal(req.PluginOptions, &opts); err != nil {
+		return nil, fmt.Errorf("failed to parse options: %w", err)
+	}
+
+	defaults := make(map[string][]string)
+	for _, entry := range opts.IgnoreColumns {
+		parts := strings.SplitN(entry, ".", 2)
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid column format %q, expected table.column", entry)
+		}
+		if defaults[parts[0]] == nil {
+			defaults[parts[0]] = []string{}
+		}
+		defaults[parts[0]] = append(defaults[parts[0]], parts[1])
+	}
+	return defaults, nil
 }
