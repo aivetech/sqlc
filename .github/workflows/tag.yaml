@@ -16,8 +16,8 @@ jobs:
 
       - name: build
         run: |
-          cd src/pluging-insert-checker
-          go build -buildvcs=false -o pluging-insert-checker
+          cd src/plugin-insert-checker
+          go build -buildvcs=false -o plugin-insert-checker
 
       - name: tag
         run: |
@@ -26,5 +26,5 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
           git fetch --tags
-          ./tag.sh pluging-insert-checker
+          ./tag.sh plugin-insert-checker
           git push origin --tags

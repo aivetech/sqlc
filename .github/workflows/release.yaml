@@ -17,8 +17,8 @@ jobs:
 
       - name: build
         run: |
-          cd src/pluging-insert-checker
-          GOOS=wasip1 GOARCH=wasm go build -buildvcs=false -o pluging-insert-checker.wasm
+          cd src/plugin-insert-checker
+          GOOS=wasip1 GOARCH=wasm go build -buildvcs=false -o plugin-insert-checker.wasm
 
       - name: Release
         uses: softprops/action-gh-release@v2
@@ -27,6 +27,6 @@ jobs:
           name: "Release ${{ github.ref_name }}"
           body: "Automated release for ${{ github.ref_name }}"
           files: |
-            src/pluging-insert-checker/pluging-insert-checker.wasm
+            src/plugin-insert-checker/plugin-insert-checker.wasm
         env:
           GITHUB_TOKEN: ${{ secrets.SQLC_RELEASE }}

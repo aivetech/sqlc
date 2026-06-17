@@ -13,5 +13,5 @@ jobs:
 
       - name: build
         run: |
-          cd src/pluging-insert-checker
-          go build -buildvcs=false -o pluging-insert-checker
+          cd src/plugin-insert-checker
+          go build -buildvcs=false -o plugin-insert-checker

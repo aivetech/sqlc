@@ -1,6 +1,6 @@
-module pluging-insert-checker
+module plugin-gen-ts
 
-go 1.26.1
+go 1.26.3
 
 require github.com/sqlc-dev/plugin-sdk-go v1.23.0
 

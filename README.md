@@ -18,7 +18,7 @@ To create a new plugin:
 3. Implement your plugin logic
 
 ```
-package pluging-name
+package plugin-name
 
 func main() {
 	codegen.Run(generate)
