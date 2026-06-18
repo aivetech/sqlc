@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/sqlc-dev/plugin-sdk-go/codegen"
@@ -20,11 +19,11 @@ type Options struct {
 }
 
 func generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.GenerateResponse, error) {
-	f, err := os.OpenFile("./sqlc-plugin.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
+	// f, err := os.OpenFile("./sqlc-plugin.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// defer f.Close()
 
 	if len(req.PluginOptions) == 0 {
 		return nil, nil
@@ -42,16 +41,6 @@ func generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 	files := make(map[string][]string)
 
 	for _, queries := range req.Queries {
-		fmt.Fprintf(f, "Processing queries for file: %s\n", queries.Filename)
-		fmt.Fprintf(f, "Name: %v\n", queries.Name)
-		fmt.Fprintf(f, "Cmd: %v\n", queries.Cmd)
-		for _, cols := range queries.Columns {
-			fmt.Fprintf(f, "Column: %v\n", cols.Name)
-		}
-		for _, params := range queries.Params {
-			fmt.Fprintf(f, "Param: %v\n", params.Column.Name)
-		}
-
 		if files[queries.Filename] == nil {
 			files[queries.Filename] = []string{}
 		}
@@ -67,7 +56,6 @@ func generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 			Name:     filename + ".ts",
 			Contents: []byte(contents),
 		})
-		fmt.Fprintf(f, "Generated file: %s\n", filename+".ts")
 	}
 
 	return &plugin.GenerateResponse{
