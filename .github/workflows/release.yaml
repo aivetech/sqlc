@@ -1,4 +1,5 @@
 name: release
+
 on:
   push:
     tags:
@@ -8,6 +9,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container: golang:1.26
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -15,10 +17,31 @@ jobs:
           token: ${{ secrets.SQLC_RELEASE }}
           fetch-depth: 0
 
-      - name: build
+      - name: Extract project from tag
+        id: project
+        shell: bash
         run: |
-          cd src/pluging-insert-checker
-          GOOS=wasip1 GOARCH=wasm go build -buildvcs=false -o pluging-insert-checker.wasm
+          tag="${GITHUB_REF_NAME}"
+
+          if [[ ! "$tag" =~ ^[a-zA-Z0-9._-]+-v[0-9].*$ ]]; then
+            echo "Unsupported release tag: $tag" >&2
+            exit 1
+          fi
+
+          project="${tag%-v*}"
+
+          if [ ! -d "src/$project" ]; then
+            echo "Project directory does not exist: src/$project" >&2
+            exit 1
+          fi
+
+          echo "name=$project" >> "$GITHUB_OUTPUT"
+          echo "wasm=src/$project/$project.wasm" >> "$GITHUB_OUTPUT"
+
+      - name: Build ${{ steps.project.outputs.name }}
+        run: |
+          cd "src/${{ steps.project.outputs.name }}"
+          GOOS=wasip1 GOARCH=wasm go build -buildvcs=false -o "${{ steps.project.outputs.name }}.wasm"
 
       - name: Release
         uses: softprops/action-gh-release@v2
@@ -27,6 +50,6 @@ jobs:
           name: "Release ${{ github.ref_name }}"
           body: "Automated release for ${{ github.ref_name }}"
           files: |
-            src/pluging-insert-checker/pluging-insert-checker.wasm
+            ${{ steps.project.outputs.wasm }}
         env:
           GITHUB_TOKEN: ${{ secrets.SQLC_RELEASE }}

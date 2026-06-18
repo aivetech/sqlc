@@ -1,0 +1,42 @@
+name: changed-projects
+
+on:
+  workflow_call:
+    outputs:
+      projects:
+        description: Changed projects as JSON array
+        value: ${{ jobs.changes.outputs.projects }}
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      projects: ${{ steps.projects.outputs.projects }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Detect changed projects
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            plugin_insert_checker:
+              - 'src/plugin-insert-checker/**'
+            plugin_gen_ts:
+              - 'src/plugin-gen-ts/**'
+
+      - name: Build project matrix
+        id: projects
+        run: |
+          projects='[]'
+
+          if [ "${{ steps.filter.outputs.plugin_insert_checker }}" = "true" ]; then
+            projects=$(echo "$projects" | jq -c '. + ["plugin-insert-checker"]')
+          fi
+
+          if [ "${{ steps.filter.outputs.plugin_gen_ts }}" = "true" ]; then
+            projects=$(echo "$projects" | jq -c '. + ["plugin-gen-ts"]')
+          fi
+
+          echo "projects=$projects" >> "$GITHUB_OUTPUT"

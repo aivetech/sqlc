@@ -1,12 +1,24 @@
 name: tag
+
 on:
   push:
     branches: [main]
 
 jobs:
+  changes:
+    uses: ./.github/workflows/changed-projects.yml
+
   tag:
+    needs: changes
+    if: needs.changes.outputs.projects != '[]'
     runs-on: ubuntu-latest
     container: golang:1.26
+
+    strategy:
+      fail-fast: false
+      matrix:
+        project: ${{ fromJson(needs.changes.outputs.projects) }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -14,17 +26,17 @@ jobs:
           token: ${{ secrets.SQLC_RELEASE }}
           fetch-depth: 0
 
-      - name: build
+      - name: Build ${{ matrix.project }}
         run: |
-          cd src/pluging-insert-checker
-          go build -buildvcs=false -o pluging-insert-checker
+          cd "src/${{ matrix.project }}"
+          go build -buildvcs=false -o "${{ matrix.project }}"
 
-      - name: tag
+      - name: Tag ${{ matrix.project }}
         run: |
           git config --global --add safe.directory /__w/sqlc/sqlc
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
           git fetch --tags
-          ./tag.sh pluging-insert-checker
+          ./tag.sh "${{ matrix.project }}"
           git push origin --tags
