@@ -1,17 +1,57 @@
 name: test
+
 on:
   pull_request:
     branches: [main]
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      projects: ${{ steps.set-matrix.outputs.projects }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect changed projects
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            plugin-insert-checker:
+              - 'src/plugin-insert-checker/**'
+            plugin-gen-ts:
+              - 'src/plugin-gen-ts/**'
+
+      - name: Build matrix
+        id: set-matrix
+        run: |
+          projects='[]'
+
+          if [ "${{ steps.filter.outputs.plugin-insert-checker }}" = "true" ]; then
+            projects=$(echo "$projects" | jq -c '. + ["plugin-insert-checker"]')
+          fi
+
+          if [ "${{ steps.filter.outputs.plugin-gen-ts }}" = "true" ]; then
+            projects=$(echo "$projects" | jq -c '. + ["plugin-gen-ts"]')
+          fi
+
+          echo "projects=$projects" >> "$GITHUB_OUTPUT"
+
   test:
+    needs: changes
+    if: needs.changes.outputs.projects != '[]'
     runs-on: ubuntu-latest
     container: golang:1.26
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
 
-      - name: build
+    strategy:
+      fail-fast: false
+      matrix:
+        project: ${{ fromJson(needs.changes.outputs.projects) }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build ${{ matrix.project }}
         run: |
-          cd src/plugin-insert-checker
-          go build -buildvcs=false -o plugin-insert-checker
+          cd "src/${{ matrix.project }}"
+          go build -buildvcs=false -o "${{ matrix.project }}"
