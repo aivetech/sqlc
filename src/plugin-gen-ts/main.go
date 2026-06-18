@@ -55,7 +55,7 @@ func generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 		if files[queries.Filename] == nil {
 			files[queries.Filename] = []string{}
 		}
-		query := fmt.Sprintf("export const %s = `%s`;\n", queries.Name, queries.Text)
+		query := fmt.Sprintf("export const %s = `%s`\n", queries.Name, queries.Text)
 		files[queries.Filename] = append(files[queries.Filename], query)
 	}
 
